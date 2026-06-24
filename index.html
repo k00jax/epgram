@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>epGram — Epstein Files Keyword Timeline</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+:root { color-scheme: dark; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: #0a0a0b; color: #e4e4e7; min-height: 100vh; line-height: 1.5;
+}
+.container { max-width: 1100px; margin: 0 auto; padding: 20px 24px; }
+
+.header {
+  padding: 28px 0 16px; display: flex; align-items: baseline; gap: 12px;
+  border-bottom: 1px solid #27272a; margin-bottom: 24px;
+}
+.header h1 {
+  font-size: 22px; font-weight: 700;
+  background: linear-gradient(135deg, #a78bfa, #60a5fa);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.header .beta {
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  background: #1c1c1f; color: #a78bfa; padding: 2px 8px; border-radius: 4px; font-weight: 600;
+}
+.header .sub { font-size: 13px; color: #71717a; }
+
+.controls {
+  background: #131316; border: 1px solid #27272a; border-radius: 12px;
+  padding: 20px 24px; margin-bottom: 24px;
+}
+.keyword-row { display: flex; gap: 10px; align-items: center; margin-bottom: 8px; }
+.keyword-input {
+  flex: 1; height: 40px; padding: 0 14px;
+  background: #1c1c1f; border: 1px solid #3f3f46; border-radius: 8px;
+  font-size: 14px; font-family: inherit; color: #e4e4e7;
+}
+.keyword-input:focus { outline: none; border-color: #818cf8; }
+.keyword-input::placeholder { color: #52525b; }
+.keyword-color {
+  width: 32px; height: 32px; border-radius: 6px; border: 1px solid #3f3f46;
+  cursor: pointer; padding: 0; background: none; flex-shrink: 0;
+}
+.btn-icon {
+  width: 32px; height: 32px; border-radius: 6px; border: 1px solid #3f3f46;
+  background: #1c1c1f; color: #a1a1aa; font-size: 18px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.btn-icon:hover { background: #27272a; color: #e4e4e7; }
+
+.options-row { display: flex; gap: 16px; align-items: end; margin-top: 16px; flex-wrap: wrap; }
+.opt-group { display: flex; flex-direction: column; gap: 4px; }
+.opt-group label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #71717a; }
+.opt-group input, .opt-group select {
+  height: 36px; padding: 0 10px; background: #1c1c1f; border: 1px solid #3f3f46;
+  border-radius: 8px; font-size: 14px; font-family: inherit; color: #e4e4e7;
+}
+.opt-group input:focus, .opt-group select:focus { outline: none; border-color: #818cf8; }
+.opt-group.small { width: 90px; }
+.opt-group.medium { width: 130px; }
+.btn {
+  height: 40px; padding: 0 24px; border: none; border-radius: 8px;
+  font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer;
+}
+.btn-go { background: linear-gradient(135deg, #7c3aed, #2563eb); color: #fff; }
+.btn-go:hover:not(:disabled) { filter: brightness(1.15); }
+.btn-go:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.status {
+  display: flex; align-items: center; gap: 10px; padding: 10px 16px;
+  border-radius: 8px; background: #131316; border: 1px solid #27272a;
+  margin-bottom: 24px; min-height: 44px; font-size: 14px;
+}
+.status.running { border-color: #7c3aed; }
+.spinner {
+  width: 18px; height: 18px; border: 2.5px solid #27272a;
+  border-top-color: #7c3aed; border-radius: 50%; animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.loading-card {
+  background: #131316; border: 1px solid #27272a; border-radius: 12px;
+  padding: 48px 24px; text-align: center; margin-bottom: 24px;
+}
+.loading-card .big-spinner {
+  width: 40px; height: 40px; border: 3px solid #27272a;
+  border-top-color: #7c3aed; border-radius: 50%; animation: spin 0.7s linear infinite;
+  margin: 0 auto 16px;
+}
+.loading-card .load-msg { font-size: 14px; color: #a1a1aa; }
+
+.chart-card {
+  background: #131316; border: 1px solid #27272a; border-radius: 12px;
+  padding: 24px; margin-bottom: 24px;
+}
+.chart-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }
+.chart-header h2 { font-size: 16px; font-weight: 600; color: #d4d4d8; }
+.chart-container { position: relative; width: 100%; height: 400px; }
+
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-bottom: 24px; }
+.stat-card { background: #131316; border: 1px solid #27272a; border-radius: 10px; padding: 16px; }
+.stat-card .kw { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.stat-card .swatch { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+.stat-card .kw-name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stat-card .hits { font-size: 28px; font-weight: 700; }
+.stat-card .label { font-size: 11px; color: #71717a; text-transform: uppercase; letter-spacing: 0.04em; margin-top: 2px; }
+
+.footer { text-align: center; padding: 16px 0 40px; font-size: 12px; color: #52525b; }
+.footer a { color: #71717a; }
+
+.hidden { display: none !important; }
+@media (max-width: 640px) {
+  .container { padding: 12px 16px; }
+  .options-row { flex-direction: column; }
+  .opt-group.small, .opt-group.medium { width: 100%; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>epGram</h1>
+    <span class="beta">beta</span>
+    <span class="sub">Keyword frequency over time in the Epstein files</span>
+  </div>
+
+  <!-- Sample data warning (hidden when real data loads) -->
+  <div id="sample-warning" style="background:#2d1f0e;border:1px solid #fbbf24;border-radius:8px;padding:12px 16px;margin-bottom:24px;font-size:13px;color:#fbbf24;text-align:center;">
+    ⚠️ <strong>Sample data</strong> — these trend lines are synthetic placeholders.
+    Run <code style="background:#1a0f00;padding:2px 6px;border-radius:4px;">python scripts/build_index.py</code> to generate the real keyword index from jmail.world datasets, then redeploy.
+  </div>
+
+  <!-- Loading state -->
+  <div class="loading-card" id="loading">
+    <div class="big-spinner"></div>
+    <div class="load-msg" id="load-msg">Loading keyword index...</div>
+  </div>
+
+  <!-- Controls (hidden until loaded) -->
+  <div class="controls hidden" id="controls">
+    <div id="keywords-container">
+      <div class="keyword-row">
+        <input type="color" class="keyword-color" value="#818cf8">
+        <input type="text" class="keyword-input" placeholder="Enter keyword (e.g. flight, Clinton, settlement)...">
+        <button class="btn-icon" onclick="removeKw(this)">×</button>
+      </div>
+    </div>
+    <button class="btn-icon" onclick="addKw()" style="margin-top:4px;">+</button>
+
+    <div class="options-row">
+      <div class="opt-group medium">
+        <label>Date range</label>
+        <select id="date-range">
+          <option value="2000-2026" selected>2000 – 2026</option>
+          <option value="1995-2026">1995 – 2026</option>
+          <option value="2005-2008">2005 – 2008 (Palm Beach)</option>
+          <option value="1990-2026">1990 – 2026</option>
+          <option value="auto">Auto-fit</option>
+        </select>
+      </div>
+      <div class="opt-group small">
+        <label>Smoothing</label>
+        <select id="smoothing"><option value="0">None</option><option value="1">1 yr</option><option value="2" selected>2 yr</option><option value="3">3 yr</option></select>
+      </div>
+      <button class="btn btn-go" id="go-btn" onclick="go()">Search</button>
+    </div>
+  </div>
+
+  <div class="status hidden" id="status"><div class="spinner" id="spin"></div><span id="status-text"></span></div>
+  <div class="stats-grid hidden" id="stats"></div>
+  <div class="chart-card hidden" id="chart-card">
+    <div class="chart-header"><h2>Keyword frequency</h2><span style="font-size:12px;color:#71717a;">Based on ~1.78M emails + 1.4M documents</span></div>
+    <div class="chart-container"><canvas id="chart"></canvas></div>
+  </div>
+  <div class="footer">
+    Index built from <a href="https://jmail.world" target="_blank">jmail.world</a> parquet datasets — all searching happens in your browser.
+  </div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────
+const COLORS = ['#818cf8','#34d399','#fbbf24','#f87171','#a78bfa','#22d3ee','#fb923c','#e879f9'];
+let index = null;  // { word_index: { word: [[year, count], ...] }, meta: {...} }
+let chart = null;
+let loading = false;
+
+// ── Load index ────────────────────────────────────────────────────────
+async function loadIndex() {
+  const msg = document.getElementById('load-msg');
+  msg.textContent = 'Downloading keyword index...';
+
+  try {
+    const resp = await fetch('/data/epgram_index.json');
+    if (!resp.ok) throw new Error('Index not found (HTTP ' + resp.status + '). Run scripts/build_index.py first.');
+    const data = await resp.json();
+
+    index = data;
+    const terms = Object.keys(data.word_index).length.toLocaleString();
+    const years = data.meta.year_range.join('–');
+    msg.textContent = 'Loaded ' + terms + ' keywords across ' + years;
+
+    if (data.meta.total_terms_indexed > 100) {
+      var warn = document.getElementById('sample-warning');
+      if (warn) warn.style.display = 'none';
+    }
+
+    setTimeout(function() {
+      document.getElementById('loading').classList.add('hidden');
+      document.getElementById('controls').classList.remove('hidden');
+    }, 400);
+
+  } catch (e) {
+    msg.innerHTML = '<span style="color:#f87171;">Failed to load index:</span><br>' + e.message + '<br><br>' +
+      '<span style="color:#a1a1aa;font-size:12px;">Run <code style="background:#1c1c1f;padding:2px 6px;border-radius:4px;">python scripts/build_index.py</code> to generate the index file,<br>then redeploy.</span>';
+  }
+}
+
+// ── Keyword management ────────────────────────────────────────────────
+function addKw() {
+  const c = document.getElementById('keywords-container');
+  const row = document.createElement('div');
+  row.className = 'keyword-row';
+  row.innerHTML = `<input type="color" class="keyword-color" value="${COLORS[c.children.length % COLORS.length]}"><input type="text" class="keyword-input" placeholder="Keyword..."><button class="btn-icon" onclick="removeKw(this)">×</button>`;
+  c.appendChild(row);
+}
+function removeKw(btn) {
+  const c = document.getElementById('keywords-container');
+  if (c.children.length > 1) btn.closest('.keyword-row').remove();
+}
+function getKws() {
+  return [...document.querySelectorAll('.keyword-row')].map(r => {
+    const t = r.querySelector('.keyword-input').value.trim().toLowerCase();
+    return t ? { term: t, color: r.querySelector('.keyword-color').value } : null;
+  }).filter(Boolean);
+}
+
+// ── Search ────────────────────────────────────────────────────────────
+function lookup(term) {
+  if (!index) return null;
+
+  // Exact match first
+  if (index.word_index[term]) return index.word_index[term];
+
+  // Try singular/plural variants
+  if (term.endsWith('s') && index.word_index[term.slice(0, -1)]) return index.word_index[term.slice(0, -1)];
+  if (index.word_index[term + 's']) return index.word_index[term + 's'];
+
+  // Try stripping trailing characters for partial match
+  const base = term.replace(/[^a-z0-9]$/, '');
+  if (base !== term && index.word_index[base]) return index.word_index[base];
+
+  // Multi-word: try each word individually and merge
+  const words = term.split(/\s+/).filter(w => w.length > 1);
+  if (words.length > 1) {
+    const merged = {};
+    let foundAny = false;
+    for (const w of words) {
+      const hits = lookup(w);
+      if (hits) {
+        foundAny = true;
+        for (const [y, c] of hits) {
+          merged[y] = (merged[y] || 0) + c;
+        }
+      }
+    }
+    if (foundAny) return Object.entries(merged).map(([y, c]) => [parseInt(y), c]).sort((a, b) => a[0] - b[0]);
+  }
+
+  return null;
+}
+
+// ── Smoothing ─────────────────────────────────────────────────────────
+function smooth(arr, w) {
+  if (w <= 0 || arr.length === 0) return [...arr];
+  const out = [], half = Math.floor(w / 2);
+  for (let i = 0; i < arr.length; i++) {
+    let sum = 0, n = 0;
+    for (let j = Math.max(0, i - half); j <= Math.min(arr.length - 1, i + half); j++) { sum += arr[j]; n++; }
+    out.push(sum / n);
+  }
+  return out;
+}
+
+// ── Main ──────────────────────────────────────────────────────────────
+async function go() {
+  if (!index) return;
+
+  const kws = getKws();
+  if (!kws.length) return alert('Enter a keyword');
+
+  if (chart) { chart.destroy(); chart = null; }
+
+  const smoothing = parseInt(document.getElementById('smoothing').value) || 2;
+  const dateRange = document.getElementById('date-range').value;
+  const status = document.getElementById('status');
+  const statusText = document.getElementById('status-text');
+  const spin = document.getElementById('spin');
+
+  status.classList.remove('hidden'); status.classList.add('running');
+  spin.classList.remove('hidden');
+  document.getElementById('chart-card').classList.add('hidden');
+  document.getElementById('stats').classList.add('hidden');
+  document.getElementById('go-btn').disabled = true;
+
+  const all = [];
+  const years = index.meta.years;
+
+  for (const kw of kws) {
+    statusText.textContent = `Looking up "${kw.term}"...`;
+    const hits = lookup(kw.term);
+    
+    if (!hits) {
+      statusText.textContent = `"${kw.term}" — not found in index. Try a different keyword.`;
+      // Still add empty result so chart renders
+      all.push({ keyword: kw.term, color: kw.color, count: 0, data: {} });
+      continue;
+    }
+
+    const data = {};
+    let total = 0;
+    hits.forEach(([y, c]) => { data[y] = c; total += c; });
+    all.push({ keyword: kw.term, color: kw.color, count: total, data });
+  }
+
+  // ── Year range ──
+  let yMin = years[0], yMax = years[years.length - 1];
+  if (dateRange !== 'auto') {
+    [yMin, yMax] = dateRange.split('-').map(Number);
+  } else {
+    const usedYears = new Set();
+    all.forEach(r => Object.keys(r.data).forEach(y => usedYears.add(parseInt(y))));
+    if (usedYears.size > 0) {
+      const sorted = [...usedYears].sort((a, b) => a - b);
+      yMin = sorted[0]; yMax = sorted[sorted.length - 1];
+    }
+  }
+
+  const labels = [];
+  for (let y = yMin; y <= yMax; y++) labels.push(String(y));
+
+  const datasets = all.map(r => {
+    const raw = labels.map(y => r.data[parseInt(y)] || 0);
+    const sm = smooth(raw, smoothing);
+    return {
+      label: r.keyword,
+      data: sm,
+      borderColor: r.color,
+      backgroundColor: r.color + '30',
+      borderWidth: 2.5,
+      tension: 0.35,
+      pointRadius: labels.length > 25 ? 0 : 3,
+      pointHoverRadius: 6,
+      pointBackgroundColor: r.color,
+      fill: false,
+      spanGaps: true,
+    };
+  });
+
+  // ── Chart ──
+  const ctx = document.getElementById('chart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: { color: '#a1a1aa', usePointStyle: true, pointStyleWidth: 8, padding: 20, font: { size: 13 } },
+        },
+        tooltip: {
+          backgroundColor: '#1c1c1f', titleColor: '#e4e4e7', bodyColor: '#a1a1aa',
+          borderColor: '#3f3f46', borderWidth: 1, cornerRadius: 8,
+        },
+      },
+      scales: {
+        x: { ticks: { color: '#71717a', maxTicksLimit: labels.length > 30 ? 15 : labels.length }, grid: { color: '#1c1c1f' } },
+        y: { ticks: { color: '#71717a' }, grid: { color: '#1c1c1f' }, beginAtZero: true, title: { display: true, text: 'Mentions', color: '#71717a' } },
+      },
+    },
+  });
+  document.getElementById('chart-card').classList.remove('hidden');
+
+  // ── Stats ──
+  document.getElementById('stats').innerHTML = all.map(r => {
+    const entries = Object.entries(r.data);
+    let peakY = '-', peakN = '-';
+    if (entries.length) {
+      const peak = entries.sort((a, b) => b[1] - a[1])[0];
+      peakY = peak[0]; peakN = peak[1].toLocaleString();
+    }
+    return `<div class="stat-card">
+      <div class="kw"><div class="swatch" style="background:${r.color}"></div><span class="kw-name">${r.keyword}</span></div>
+      <div class="hits">${r.count.toLocaleString()}</div>
+      <div class="label">Total mentions</div>
+      <div style="font-size:12px;color:#a1a1aa;margin-top:4px;">Peak: ${peakY} (${peakN})</div>
+    </div>`;
+  }).join('');
+  document.getElementById('stats').classList.remove('hidden');
+
+  statusText.textContent = `Done — ${all.map(r => r.keyword).join(', ')} across ${labels.length} years`;
+  status.classList.remove('running'); spin.classList.add('hidden');
+  document.getElementById('go-btn').disabled = false;
+}
+
+// ── Init ──────────────────────────────────────────────────────────────
+loadIndex();
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.classList.contains('keyword-input')) { e.preventDefault(); go(); }
+});
+</script>
+</body>
+</html>
